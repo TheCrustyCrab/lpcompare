@@ -80,7 +80,8 @@ int main(int argc, char** argv) {
 
         lprec* lp;
         if (opts.fileType == FileType::Lp) {
-            lp = read_lp(file, 0, "lpcompare");
+            char* lpName = "lpcompare";
+            lp = read_lp(file, 0, lpName);
         } else { // Mps
             lp = read_mps(file, NORMAL | MPS_FREE);
         }        
