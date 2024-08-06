@@ -25,3 +25,26 @@ jobs:
             - name: Build webapp
               run: npm install && npm run build
               working-directory: webapp
+            
+            - uses: actions/upload-artifact@main
+              with:
+                name: dist
+                path: webapp/dist
+    
+    deploy:
+        runs-on: ubuntu-latest
+        needs: build
+        environment: 
+            name: github-pages
+            url: ${{steps.deployment.outputs.page_url}}
+        steps:
+            - uses: actions/download-artifact@main
+              with:
+                name: dist
+                path: .
+            - uses: actions/configure-pages@main
+            - uses: actions/upload-pages-artifact@main
+              with:
+                path: .
+            - id: deployment
+              uses: actions/deploy-pages@main
