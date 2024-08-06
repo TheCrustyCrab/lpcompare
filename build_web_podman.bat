@@ -1,0 +1,1 @@
+podman run --rm -v %cd%:/src emscripten/emsdk sh ./build_web_emsdk_container.sh
