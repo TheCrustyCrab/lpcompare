@@ -18,6 +18,10 @@ jobs:
             - name: Copy Emscripten output to webapp
               run: mkdir webapp/src/lpcompare && find web -maxdepth 1 -name "lpcompare.*" -exec cp "{}" webapp/src/lpcompare \;
 
+            - name: Install @rollup/rollup-linux-x64-gnu (https://github.com/vitejs/vite/discussions/15532)
+              run: npm install @rollup/rollup-linux-x64-gnu --save-optional
+              working-directory: webapp
+
             - name: Build webapp
               run: npm install && npm run build
               working-directory: webapp
