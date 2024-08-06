@@ -9,8 +9,10 @@ jobs:
         runs-on: ubuntu-latest
         container:
             image: emscripten/emsdk:latest
-            volumes:
-                - ${{ github.workspace }}:/workdir
+            # volumes:
+            #     - ${{ github.workspace }}:/workdir
         steps:
+            - uses: actions/checkout@v4
+
             - name: Run build script
-              run: ls && cd /workdir && ls
+              run: ls
