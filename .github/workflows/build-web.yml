@@ -13,4 +13,4 @@ jobs:
                 - ${{ github.workspace }}:/workdir
         steps:
             - name: Run build script
-              run: sh ./build_web_emsdk_container.sh
+              run: sh /workdir/build_web_emsdk_container.sh
