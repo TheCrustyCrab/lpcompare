@@ -16,7 +16,7 @@ jobs:
               run: sh ./build_web_emsdk_container.sh
 
             - name: Copy Emscripten output to webapp
-              run: find web -maxdepth 1 -name "lpcompare.*" -exec cp "{}" webapp/src/lpcompare \;
+              run: mkdir webapp/src/lpcompare && find web -maxdepth 1 -name "lpcompare.*" -exec cp "{}" webapp/src/lpcompare \;
 
             - name: Build webapp
               run: npm install && npm run build
