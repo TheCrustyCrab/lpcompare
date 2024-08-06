@@ -1,17 +1,10 @@
 import { useState } from "react";
 
-export interface SimplexMPSCalculationRequestEvent {
-    data: string
-}
-
-export default function SimplexMPS({ onCalculateRequest }: { onCalculateRequest: (evt: SimplexMPSCalculationRequestEvent) => void }) {
+export default function SimplexFile({ onCalculateRequest }: { onCalculateRequest: (data: string) => void }) {
     const [data, setData] = useState("");
 
     const handleCalculateClick = () => {
-        const event = {
-            data
-        };
-        onCalculateRequest(event);
+        onCalculateRequest(data);
     };
 
     return (

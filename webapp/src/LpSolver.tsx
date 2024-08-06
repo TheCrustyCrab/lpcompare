@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import SimplexMPS, { SimplexMPSCalculationRequestEvent } from "./SimplexMPS.tsx";
+import SimplexFile from "./SimplexFile.tsx";
 import lpcompareInit, { MainModule } from "./lpcompare/lpcompare";
 import lpcompareUrl from "./lpcompare/lpcompare.wasm?url";
 
 enum Mode {
     Table = 0,
-    MPS = 1
+    LP = 1,
+    MPS = 2
 }
 
 enum Solver {
@@ -24,6 +25,7 @@ export default function LpSolver() {
     const [lpcompare, setLpcompare] = useState<MainModule | null>(null);
     const [mode, setMode] = useState(Mode.Table);
     const [solver, setSolver] = useState(Solver.Highs);
+    const [logEnabled, setLogEnabled] = useState(true);
     const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
 
     useEffect(() => {
@@ -38,9 +40,10 @@ export default function LpSolver() {
         loadLpcompareLib();
     }, []);
 
-    const handleMPSCalculateRequest = async (event: SimplexMPSCalculationRequestEvent) => {
-        lpcompare!.FS.writeFile("input.mps", event.data);
-        lpcompare!.callMain([solver, "input.mps"]);
+    const handleFileCalculateRequest = (fileExt: string, data: string) => {
+        const inputFile = `input.${fileExt}`;
+        lpcompare!.FS.writeFile(inputFile, data);
+        lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
         const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
         const result = JSON.parse(resultData) as CalculationResult;
         setCalculationResult(result);
@@ -62,11 +65,19 @@ export default function LpSolver() {
             <div>
                 <input type="radio" id="table" checked={mode === Mode.Table} onChange={() => setMode(Mode.Table)} />
                 <label htmlFor="table">Table</label>
+                <input type="radio" id="lp"  checked={mode === Mode.LP} onChange={() => setMode(Mode.LP)} />
+                <label htmlFor="lp">LP</label>
                 <input type="radio" id="mps"  checked={mode === Mode.MPS} onChange={() => setMode(Mode.MPS)} />
                 <label htmlFor="mps">MPS</label>
             </div>
+            <div>
+                <input type="checkbox" id="log" checked={logEnabled} onChange={(evt) => setLogEnabled(evt.target.checked)} />
+                <label htmlFor="log">Enable log</label>
+            </div>
             {
-                    <SimplexMPS onCalculateRequest={handleMPSCalculateRequest}></SimplexMPS>
+                mode === Mode.Table
+                    ? <div>todo</div>
+                    : <SimplexFile onCalculateRequest={data => handleFileCalculateRequest(mode === Mode.LP ? "lp" : "mps", data)}></SimplexFile>
             }
             {
                 calculationResult !== null 

@@ -1,9 +1,11 @@
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include "Highs.h"
 #include "lp_lib.h"
 
 using namespace std;
+using namespace std::chrono;
 
 enum class Solver {
     Highs,
@@ -11,7 +13,7 @@ enum class Solver {
 };
 
 enum class FileType {
-    Lp,
+    LpsolveLp,
     Mps
 };
 
@@ -19,11 +21,12 @@ struct LpCompareOpts {
     Solver solver;
     FileType fileType;
     string inputFile;
+    bool logEnabled;
 };
 
 bool parseArgs(int argc, char** argv, LpCompareOpts& opts) {
-    if (argc != 3) {
-        cout << "Invalid argument count, expected 2." << endl;
+    if (argc != 3 && argc != 4) {
+        cout << "Invalid argument count, expected 2 or 3." << endl;
         return false;
     }
 
@@ -46,17 +49,32 @@ bool parseArgs(int argc, char** argv, LpCompareOpts& opts) {
         return false;
     }
     if (inputFile.compare(inputFileLen - 3, 3, ".lp") == 0) {
-        fileType = FileType::Lp;
+        fileType = FileType::LpsolveLp;
     } else if (inputFile.compare(inputFileLen - 4, 4, ".mps") == 0) {
         fileType = FileType::Mps;
     } else {
         cout << "Invalid input file (type)" << endl;
         return false;
     }
+    
+    bool logEnabled = true;
+    if (argc == 4) {
+        char* logEnabledFlag = argv[3];
+        if (*logEnabledFlag == '0') {
+            logEnabled = false;
+        } else if (*logEnabledFlag == '1') {
+            logEnabled = true;
+        } else {
+            cout << "Invalid flag to enable logs" << logEnabledFlag << endl;
+            return false;
+        }
+    }
 
     opts.solver = solver;
     opts.fileType = fileType;
     opts.inputFile = inputFile;
+    opts.logEnabled = logEnabled;
+
     return true;
 }
 
@@ -87,26 +105,47 @@ int main(int argc, char** argv) {
         return -1;
     }
     
-    auto startTime = chrono::system_clock::now();
     if (opts.solver == Solver::Highs) {
+        string inputFileName = opts.inputFile;
+        if (opts.fileType == FileType::LpsolveLp) {
+            // convert to MPS: HiGHS can deal with the CPLEX LP format but not with the Lpsolve LP format
+            FILE* file = fopen(opts.inputFile.c_str(), "r");
+            if (!file) {
+                cout << "Input file not found" << endl;
+                return -1;
+            }
+            inputFileName = "convertedlp.mps";
+            char* lpName = "lpcompare";
+            lprec* lp = read_lp(file, 0, lpName);
+            write_mps(lp, &inputFileName[0]);
+            delete_lp(lp);
+        }
+        auto startTime = chrono::system_clock::now();
         Highs highs;
-        HighsStatus readStatus = highs.readModel(opts.inputFile);
+        HighsStatus readStatus = highs.readModel(inputFileName);
         if (readStatus == HighsStatus::kError) {
             cout << "Input file not found" << endl;
             return -1;
         }
-        // highs.setOptionValue("log_to_console", false);
+        if (!opts.logEnabled) {
+            highs.setOptionValue("log_to_console", false);
+        }
         HighsStatus status = highs.run();
         HighsSolution sol = highs.getSolution();
         HighsModelStatus modelStatus = highs.getModelStatus();
         double objectiveValue = highs.getObjectiveValue();
         int varCount = highs.getNumCol();
-        double executionTimeMillis = (chrono::system_clock::now() - startTime).count() / 1000;
+        double executionTimeMillis = duration_cast<milliseconds>(system_clock::now() - startTime).count();
         bool isOptimal = modelStatus == HighsModelStatus::kOptimal;
 
         writeResult(executionTimeMillis, isOptimal, varCount, &sol.col_value[0], objectiveValue);
+        
+        if (opts.fileType == FileType::LpsolveLp) {
+            remove(&inputFileName[0]);
+        }
         return (int)status;
     } else { // lpsolve
+        auto startTime = chrono::system_clock::now();
         FILE* file = fopen(opts.inputFile.c_str(), "r");
         if (!file) {
             cout << "Input file not found" << endl;
@@ -114,11 +153,12 @@ int main(int argc, char** argv) {
         }
 
         lprec* lp;
-        if (opts.fileType == FileType::Lp) {
+        int verbosityOptions = opts.logEnabled ? NORMAL : NEUTRAL;
+        if (opts.fileType == FileType::LpsolveLp) {
             char* lpName = "lpcompare";
-            lp = read_lp(file, 0, lpName);
+            lp = read_lp(file, verbosityOptions, lpName);
         } else { // Mps
-            lp = read_mps(file, NORMAL | MPS_FREE);
+            lp = read_mps(file, verbosityOptions | MPS_FREE);
         }
         fclose(file);
         if (!lp) {
@@ -130,7 +170,7 @@ int main(int argc, char** argv) {
         double* varCosts = new double[varCount];
         get_variables(lp, varCosts);
         double objectiveValue = get_objective(lp);
-        double executionTimeMillis = (chrono::system_clock::now() - startTime).count() / 1000;
+        double executionTimeMillis = duration_cast<milliseconds>(system_clock::now() - startTime).count();
         bool isOptimal = status == OPTIMAL;
 
         writeResult(executionTimeMillis, isOptimal, varCount, varCosts, objectiveValue);
