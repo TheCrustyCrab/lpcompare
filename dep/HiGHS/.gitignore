@@ -57,7 +57,7 @@ test32/
 test64/
 [Bb]in/
 [Oo]bj/
-test/
+# test/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
