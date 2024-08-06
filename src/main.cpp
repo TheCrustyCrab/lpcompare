@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "Highs.h"
 #include "lp_lib.h"
 
@@ -59,6 +60,26 @@ bool parseArgs(int argc, char** argv, LpCompareOpts& opts) {
     return true;
 }
 
+void writeResult(double executionTimeMillis, bool isOptimal, int weightCount, double weights[], double objectiveValue) {
+    ofstream result("result.json");
+    result << "{";
+    result << "\"executionTimeMillis\":" << executionTimeMillis << ",";
+    string isOptimalStr = isOptimal ? "true" : "false";
+    result << "\"isOptimal\":" << isOptimalStr << ",";
+    result << "\"weights\":[";
+    for (int i = 0; i < weightCount; i++) {
+        double weight = weights[i];
+        result << weight;
+        if (i < weightCount - 1) {
+            result << ",";
+        }
+    }
+    result << "],";
+    result << "\"objectiveValue\":" << objectiveValue;
+    result << "}";
+    result.close();
+}
+
 int main(int argc, char** argv) {
     LpCompareOpts opts;
     if (!parseArgs(argc, argv, opts)) {
@@ -66,10 +87,24 @@ int main(int argc, char** argv) {
         return -1;
     }
     
+    auto startTime = chrono::system_clock::now();
     if (opts.solver == Solver::Highs) {
         Highs highs;
-        highs.readModel(opts.inputFile);
+        HighsStatus readStatus = highs.readModel(opts.inputFile);
+        if (readStatus == HighsStatus::kError) {
+            cout << "Input file not found" << endl;
+            return -1;
+        }
+        // highs.setOptionValue("log_to_console", false);
         HighsStatus status = highs.run();
+        HighsSolution sol = highs.getSolution();
+        HighsModelStatus modelStatus = highs.getModelStatus();
+        double objectiveValue = highs.getObjectiveValue();
+        int varCount = highs.getNumCol();
+        double executionTimeMillis = (chrono::system_clock::now() - startTime).count() / 1000;
+        bool isOptimal = modelStatus == HighsModelStatus::kOptimal;
+
+        writeResult(executionTimeMillis, isOptimal, varCount, &sol.col_value[0], objectiveValue);
         return (int)status;
     } else { // lpsolve
         FILE* file = fopen(opts.inputFile.c_str(), "r");
@@ -84,12 +119,23 @@ int main(int argc, char** argv) {
             lp = read_lp(file, 0, lpName);
         } else { // Mps
             lp = read_mps(file, NORMAL | MPS_FREE);
-        }        
+        }
+        fclose(file);
         if (!lp) {
             return -1;
         }
 
         int status = solve(lp);
+        int varCount = get_Ncolumns(lp);
+        double* varCosts = new double[varCount];
+        get_variables(lp, varCosts);
+        double objectiveValue = get_objective(lp);
+        double executionTimeMillis = (chrono::system_clock::now() - startTime).count() / 1000;
+        bool isOptimal = status == OPTIMAL;
+
+        writeResult(executionTimeMillis, isOptimal, varCount, varCosts, objectiveValue);
+
+        delete_lp(lp);
         return status;
     }
 
