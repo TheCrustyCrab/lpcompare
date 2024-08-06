@@ -9,10 +9,8 @@ jobs:
         runs-on: ubuntu-latest
         container:
             image: emscripten/emsdk:latest
-            # volumes:
-            #     - ${{ github.workspace }}:/workdir
         steps:
             - uses: actions/checkout@v4
 
             - name: Run build script
-              run: ls
+              run: sh ./build_web_emsdk_container.sh
