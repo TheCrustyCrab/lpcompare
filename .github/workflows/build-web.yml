@@ -1,0 +1,14 @@
+name: Build for the web with Emscripten
+
+on:
+    push:
+        branches: [ master ]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        container:
+            image: emscripten/emsdk:latest
+        steps:
+            - name: Run build script
+              run: sh ./build_web_emsdk_container.sh
