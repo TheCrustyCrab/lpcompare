@@ -26,11 +26,9 @@ export default function SimplexFile({ format, onCalculateRequest }: SimplexFileP
     return (
         <>
             <div>
-                <button onClick={loadSampleFile}>Load sample</button>
+                <textarea className="file-input" value={data} onChange={(evt) => setData(evt.target.value)}></textarea>
             </div>
-            <div>
-                <textarea value={data} onChange={(evt) => setData(evt.target.value)}></textarea>
-            </div>
+            <button onClick={loadSampleFile}>Load sample</button>
             <button style={{ backgroundColor: "lightgreen" }} onClick={handleCalculateClick}>Calculate</button>
         </>
     )

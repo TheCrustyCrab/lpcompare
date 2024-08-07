@@ -27,13 +27,14 @@ export default function LpSolver() {
     const [mode, setMode] = useState(Mode.Table);
     const [solver, setSolver] = useState(Solver.Highs);
     const [logEnabled, setLogEnabled] = useState(true);
+    const [logText, setLogText] = useState("");
     const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
 
     useEffect(() => {
         const loadLpcompareLib = async () => {
             setLpcompare(await lpcompareInit({
-                print: console.log,
-                printErr: console.error,
+                print: writeToLog,
+                printErr: writeToLog,
                 locateFile: () => lpcompareUrl
             }));
         };
@@ -42,6 +43,7 @@ export default function LpSolver() {
     }, []);
 
     const handleTableCalculateRequest = async (event: SimplexTableCalculationRequestEvent) => {
+        clearLog();
         const direction = event.direction === Direction.Min ? "min" : "max";
         const objective = 
             event.varCosts.map((nullableCost, i) => {
@@ -61,20 +63,37 @@ export default function LpSolver() {
         rows.forEach((row) => lp = `${lp}\n${row};`);
         const inputFile = `input.lp`;
         lpcompare!.FS.writeFile(inputFile, lp);
-        lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
-        const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
-        const result = JSON.parse(resultData) as CalculationResult;
-        setCalculationResult(result);
+        const success = lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
+        if (success === 0) {
+            const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
+            const result = JSON.parse(resultData) as CalculationResult;
+            setCalculationResult(result);
+        } else {
+            writeToLog("Something went wrong!");
+        }
     };
 
     const handleFileCalculateRequest = (fileExt: string, data: string) => {
+        clearLog();
         const inputFile = `input.${fileExt}`;
         lpcompare!.FS.writeFile(inputFile, data);
-        lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
-        const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
-        const result = JSON.parse(resultData) as CalculationResult;
-        setCalculationResult(result);
+        const success = lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
+        if (success === 0) {
+            const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
+            const result = JSON.parse(resultData) as CalculationResult;
+            setCalculationResult(result);
+        } else {
+            writeToLog("Something went wrong!");
+        }
     };
+    
+    const writeToLog = (data: string) => {
+        setLogText((current) => `${current}\n` + data);
+    };
+
+    const clearLog = () => {
+        setLogText("");
+    }
 
     if (!lpcompare) {
         return null;
@@ -101,11 +120,20 @@ export default function LpSolver() {
                 <input type="checkbox" id="log" checked={logEnabled} onChange={(evt) => setLogEnabled(evt.target.checked)} />
                 <label htmlFor="log">Enable log</label>
             </div>
+            <div>
             {
                 mode === Mode.Table
                     ? <SimplexTable onCalculateRequest={handleTableCalculateRequest}></SimplexTable>
                     : <SimplexFile format={mode === Mode.LP ? "lp" : "mps"} onCalculateRequest={(data) => handleFileCalculateRequest(mode === Mode.LP ? "lp" : "mps", data)}></SimplexFile>
             }
+            {
+                logEnabled 
+                    ? <div>
+                        <textarea className="log" disabled value={logText}></textarea>
+                     </div>
+                    : null 
+            }            
+            </div>
             {
                 calculationResult !== null 
                     ? 
