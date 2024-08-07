@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
             inputFileName = "convertedlp.mps";
             char* lpName = "lpcompare";
             lprec* lp = read_lp(file, 0, lpName);
-            write_mps(lp, &inputFileName[0]);
+            write_freemps(lp, &inputFileName[0]);
             delete_lp(lp);
         }
         auto startTime = chrono::system_clock::now();

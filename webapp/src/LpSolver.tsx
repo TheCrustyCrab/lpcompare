@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import SimplexFile from "./SimplexFile.tsx";
 import lpcompareInit, { MainModule } from "./lpcompare/lpcompare";
 import lpcompareUrl from "./lpcompare/lpcompare.wasm?url";
+import SimplexTable, { Direction, SimplexTableCalculationRequestEvent } from "./SimplexTable.tsx";
 
 enum Mode {
     Table = 0,
@@ -40,6 +41,32 @@ export default function LpSolver() {
         loadLpcompareLib();
     }, []);
 
+    const handleTableCalculateRequest = async (event: SimplexTableCalculationRequestEvent) => {
+        const direction = event.direction === Direction.Min ? "min" : "max";
+        const objective = 
+            event.varCosts.map((nullableCost, i) => {
+                const cost = nullableCost || 0;
+                return `${cost >= 0 ? "+" : "-"}${cost}x${i}`;
+            }).join(" ");
+        const rows = event.rows.map((row) => {
+            const lb = row[0];
+            const ub = row[row.length-1];
+            const matrix = row.slice(1, -1).map((nullableValue, i) => {
+                const value = nullableValue || 0;
+                return `${value >= 0 ? "+" : "-"}${value}x${i}`;
+            }).join(" ");
+            return `${lb === null ? "" : lb + "<="}${matrix}${ub === null ? "" : "<=" + ub}`;
+        });
+        let lp = `${direction}: ${objective};`;
+        rows.forEach((row) => lp = `${lp}\n${row};`);
+        const inputFile = `input.lp`;
+        lpcompare!.FS.writeFile(inputFile, lp);
+        lpcompare!.callMain([solver, inputFile, logEnabled ? "1" : "0" ]);
+        const resultData = lpcompare!.FS.readFile("result.json", { encoding: "utf8" });
+        const result = JSON.parse(resultData) as CalculationResult;
+        setCalculationResult(result);
+    };
+
     const handleFileCalculateRequest = (fileExt: string, data: string) => {
         const inputFile = `input.${fileExt}`;
         lpcompare!.FS.writeFile(inputFile, data);
@@ -76,8 +103,8 @@ export default function LpSolver() {
             </div>
             {
                 mode === Mode.Table
-                    ? <div>todo</div>
-                    : <SimplexFile onCalculateRequest={data => handleFileCalculateRequest(mode === Mode.LP ? "lp" : "mps", data)}></SimplexFile>
+                    ? <SimplexTable onCalculateRequest={handleTableCalculateRequest}></SimplexTable>
+                    : <SimplexFile format={mode === Mode.LP ? "lp" : "mps"} onCalculateRequest={(data) => handleFileCalculateRequest(mode === Mode.LP ? "lp" : "mps", data)}></SimplexFile>
             }
             {
                 calculationResult !== null 

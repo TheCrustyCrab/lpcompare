@@ -1,7 +1,23 @@
 import { useState } from "react";
+import { SAMPLE_LP, SAMPLE_MPS } from "./samples";
 
-export default function SimplexFile({ onCalculateRequest }: { onCalculateRequest: (data: string) => void }) {
+type Format = "lp" | "mps";
+
+interface SimplexFileProps {
+    format: Format,
+    onCalculateRequest: (data: string) => void
+}
+
+export default function SimplexFile({ format, onCalculateRequest }: SimplexFileProps) {
     const [data, setData] = useState("");
+
+    const loadSampleFile = () => {
+        if (format === "lp") {
+            setData(SAMPLE_LP);
+        } else if (format === "mps") {
+            setData(SAMPLE_MPS);
+        }
+    };
 
     const handleCalculateClick = () => {
         onCalculateRequest(data);
@@ -9,6 +25,9 @@ export default function SimplexFile({ onCalculateRequest }: { onCalculateRequest
 
     return (
         <>
+            <div>
+                <button onClick={loadSampleFile}>Load sample</button>
+            </div>
             <div>
                 <textarea value={data} onChange={(evt) => setData(evt.target.value)}></textarea>
             </div>
